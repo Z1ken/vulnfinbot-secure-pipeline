@@ -71,13 +71,33 @@ jobs:
             vulnfinbot:latest
 
       - name: OWASP ZAP DAST
-        continue-on-error: true
         run: |
           docker network create vulnfinbot-scan
-          docker run -d --name vulnfinbot-ci             --network vulnfinbot-scan             -p 127.0.0.1:5001:5000             vulnfinbot:latest
-          curl --fail --retry 15 --retry-delay 1             --retry-connrefused             http://127.0.0.1:5001/health
+
+          docker run -d --name vulnfinbot-ci --network vulnfinbot-scan -p 127.0.0.1:5001:5000 vulnfinbot:latest
+
+          echo "Waiting for Flask application..."
+          ready=0
+
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://127.0.0.1:5001/health > /dev/null 2>&1; then
+              ready=1
+              echo "Application is ready!"
+              break
+            fi
+            echo "Retry $i/30"
+            sleep 2
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            docker ps -a
+            docker logs vulnfinbot-ci
+            exit 1
+          fi
+
           chmod a+rwx reports
-          docker run --rm             --network vulnfinbot-scan             -v "$PWD/reports:/zap/wrk/:rw"             ghcr.io/zaproxy/zaproxy:stable             zap-baseline.py             -t http://vulnfinbot-ci:5000/             -J zap-report.json -I
+
+          docker run --rm --network vulnfinbot-scan -v "$PWD/reports:/zap/wrk/:rw" ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://vulnfinbot-ci:5000/ -J zap-report.json -I
 
       - name: Upload security reports
         if: always()
