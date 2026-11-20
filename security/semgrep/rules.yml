@@ -1,0 +1,15 @@
+rules:
+  - id: python-dangerous-eval
+    patterns:
+      - pattern: eval(...)
+    message: "Avoid eval(): it may execute unsafe code."
+    languages:
+      - python
+    severity: ERROR
+
+  - id: python-dangerous-exec
+    pattern: exec(...)
+    message: "Avoid exec(): it may execute arbitrary code."
+    languages:
+      - python
+    severity: WARNING
