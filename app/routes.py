@@ -40,3 +40,11 @@ def chat():
         response = "I can help with basic financial questions."
 
     return jsonify({"response": response}), 200
+
+
+@main.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "application": "Mini-VulnFinBot",
+        "status": "running"
+    }), 200

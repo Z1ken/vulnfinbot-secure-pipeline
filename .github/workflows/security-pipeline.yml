@@ -28,8 +28,11 @@ jobs:
           pip install -r requirements.txt
           pip install bandit semgrep pip-audit
 
-      - name: Run unit tests
-        run: python -m pytest -v
+      - name: Run application tests
+        run: python -m pytest -v tests/test_app.py
+
+      - name: Run AI security tests
+        run: python -m pytest -v tests/test_ai_security.py
 
       - name: Prepare reports
         run: mkdir -p reports
@@ -66,6 +69,15 @@ jobs:
             image --exit-code 0 --format json \
             --output /reports/trivy-report.json \
             vulnfinbot:latest
+
+      - name: OWASP ZAP DAST
+        continue-on-error: true
+        run: |
+          docker network create vulnfinbot-scan
+          docker run -d --name vulnfinbot-ci             --network vulnfinbot-scan             -p 127.0.0.1:5001:5000             vulnfinbot:latest
+          curl --fail --retry 15 --retry-delay 1             --retry-connrefused             http://127.0.0.1:5001/health
+          chmod a+rwx reports
+          docker run --rm             --network vulnfinbot-scan             -v "$PWD/reports:/zap/wrk/:rw"             ghcr.io/zaproxy/zaproxy:stable             zap-baseline.py             -t http://vulnfinbot-ci:5000/             -J zap-report.json -I
 
       - name: Upload security reports
         if: always()
